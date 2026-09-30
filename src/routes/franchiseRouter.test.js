@@ -15,12 +15,42 @@ async function createAdminUser() {
   return { ...user, password: "toomanysecrets" };
 }
 
-//Get franchise Test
+//Get all franchise Test
 test("get franchise", async () => {
   const res = await request(app).get("/api/franchise");
   expect(res.status).toBe(200);
   expect(Array.isArray(res.body.franchises)).toBe(true);
   expect(typeof res.body.more).toBe("boolean");
+});
+
+//Get User's franchise
+test("get franchise", async () => {
+  const admin = await createAdminUser();
+  const loginRes = await request(app).put("/api/auth").send(admin);
+  const adminToken = loginRes.body.token;
+  const userRes = await request(app)
+    .get(`/api/franchise/${admin.id}`)
+    .set("Authorization", `Bearer ${adminToken}`);
+  expect(userRes.status).toBe(200);
+});
+
+//Deleting a franchise
+test("Delete franchise", async () => {
+  const admin = await createAdminUser();
+  const loginRes = await request(app).put("/api/auth").send(admin);
+  const adminToken = loginRes.body.token;
+  
+  const fRes = await request(app)
+    .post(`/api/franchise`)
+    .set("Authorization", `Bearer ${adminToken}`).send({ name: randomName(), admins: [{ email: admin.email }] });
+  expect(fRes.status).toBe(200);
+  const franchiseId = fRes.body.id;
+
+  const deleteRes = await request(app)
+    .delete(`/api/franchise/${franchiseId}`)
+    .set("Authorization", `Bearer ${adminToken}`);
+  expect(deleteRes.status).toBe(200);
+
 });
 
 //Creating a franchise as admin
@@ -61,12 +91,8 @@ test("Opening store as admin", async () => {
 
   // Deleting store
   const delRes = await request(app)
-  .delete(`/api/franchise/${franchiseId}/store/${storeRes.body.id}`)
-  .set("Authorization", `Bearer ${adminToken}`);
+    .delete(`/api/franchise/${franchiseId}/store/${storeRes.body.id}`)
+    .set("Authorization", `Bearer ${adminToken}`);
 
   expect(delRes.status).toBe(200);
 });
-
-
-
-

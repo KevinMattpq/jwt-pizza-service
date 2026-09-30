@@ -11,6 +11,7 @@ beforeAll(async () => {
   expectValidJwt(testUserAuthToken);
 });
 
+//Testing Login
 test('login', async () => {
   const loginRes = await request(app).put('/api/auth').send(testUser);
   expect(loginRes.status).toBe(200);
