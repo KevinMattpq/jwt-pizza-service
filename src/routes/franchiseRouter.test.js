@@ -5,7 +5,7 @@ const { Role, DB } = require("../database/database.js");
 function randomName() {
   return Math.random().toString(36).substring(2, 12);
 }
-
+//Creating an Admin User for testing
 async function createAdminUser() {
   let user = { password: "toomanysecrets", roles: [{ role: Role.Admin }] };
   user.name = randomName();
@@ -14,6 +14,17 @@ async function createAdminUser() {
   user = await DB.addUser(user);
   return { ...user, password: "toomanysecrets" };
 }
+
+//Creating a normal user
+const testUser = { name: "pizza diner", email: "reg@test.com", password: "a" };
+let testUserAuthToken;
+
+beforeAll(async () => {
+  testUser.email = Math.random().toString(36).substring(2, 12) + "@test.com";
+  const registerRes = await request(app).post("/api/auth").send(testUser);
+  testUserAuthToken = registerRes.body.token;
+  expectValidJwt(testUserAuthToken);
+});
 
 //Get all franchise Test
 test("get franchise", async () => {
@@ -24,7 +35,7 @@ test("get franchise", async () => {
 });
 
 //Get User's franchise
-test("get franchise", async () => {
+test("get admin's franchises", async () => {
   const admin = await createAdminUser();
   const loginRes = await request(app).put("/api/auth").send(admin);
   const adminToken = loginRes.body.token;
@@ -32,25 +43,6 @@ test("get franchise", async () => {
     .get(`/api/franchise/${admin.id}`)
     .set("Authorization", `Bearer ${adminToken}`);
   expect(userRes.status).toBe(200);
-});
-
-//Deleting a franchise
-test("Delete franchise", async () => {
-  const admin = await createAdminUser();
-  const loginRes = await request(app).put("/api/auth").send(admin);
-  const adminToken = loginRes.body.token;
-  
-  const fRes = await request(app)
-    .post(`/api/franchise`)
-    .set("Authorization", `Bearer ${adminToken}`).send({ name: randomName(), admins: [{ email: admin.email }] });
-  expect(fRes.status).toBe(200);
-  const franchiseId = fRes.body.id;
-
-  const deleteRes = await request(app)
-    .delete(`/api/franchise/${franchiseId}`)
-    .set("Authorization", `Bearer ${adminToken}`);
-  expect(deleteRes.status).toBe(200);
-
 });
 
 //Creating a franchise as admin
@@ -65,6 +57,35 @@ test("create franchise as admin", async () => {
     .send({ name: randomName(), admins: [{ email: admin.email }] });
 
   expect(franchiseRes.status).toBe(200);
+});
+
+//Creating a franchise as regular user - error
+test("create franchise as dinner user", async () => {
+  const franchiseRes = await request(app)
+    .post("/api/franchise")
+    .set("Authorization", `Bearer ${testUserAuthToken}`)
+    .send({ name: randomName(), admins: [{ email: testUser.email }] });
+
+  expect(franchiseRes.status).toBe(403);
+});
+
+//Deleting a franchise
+test("Delete franchise", async () => {
+  const admin = await createAdminUser();
+  const loginRes = await request(app).put("/api/auth").send(admin);
+  const adminToken = loginRes.body.token;
+
+  const fRes = await request(app)
+    .post(`/api/franchise`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({ name: randomName(), admins: [{ email: admin.email }] });
+  expect(fRes.status).toBe(200);
+  const franchiseId = fRes.body.id;
+
+  const deleteRes = await request(app)
+    .delete(`/api/franchise/${franchiseId}`)
+    .set("Authorization", `Bearer ${adminToken}`);
+  expect(deleteRes.status).toBe(200);
 });
 
 //Opening a store as an admin
@@ -96,3 +117,10 @@ test("Opening store as admin", async () => {
 
   expect(delRes.status).toBe(200);
 });
+
+//Helper function
+function expectValidJwt(potentialJwt) {
+  expect(potentialJwt).toMatch(
+    /^[a-zA-Z0-9\-_]*\.[a-zA-Z0-9\-_]*\.[a-zA-Z0-9\-_]*$/
+  );
+}
