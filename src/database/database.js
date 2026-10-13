@@ -261,6 +261,32 @@ class DB {
       connection.end();
     }
   }
+  
+  async getUsers(page = 1, limit = 10, nameFilter = '*') {
+    page = Number(page) || 1;
+    limit = Number(limit) || 10;
+    const offset = (page - 1) * limit;
+    nameFilter = nameFilter.replace(/\*/g, '%');
+  
+    const connection = await this.getConnection();
+    try {
+      let users = await this.query(
+        connection,
+        `SELECT id, name, email FROM user WHERE name LIKE ? LIMIT ${limit + 1} OFFSET ${offset}`,
+        [nameFilter]
+      );
+      const more = users.length > limit;
+      if (more) users = users.slice(0, limit);
+  
+      for (const user of users) {
+        const roles = await this.query(connection, `SELECT role, objectId FROM userRole WHERE userId=?`, [user.id]);
+        user.roles = roles.map((r) => ({ objectId: r.objectId || undefined, role: r.role }));
+      }
+      return [users, more];
+    } finally {
+      connection.end();
+    }
+  }
 
   async createStore(franchiseId, store) {
     const connection = await this.getConnection();
