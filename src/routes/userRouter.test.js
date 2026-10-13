@@ -56,10 +56,14 @@ test('list users as admin', async () => {
 
 // List users: return a list of users
 test('list users returns registered users', async () => {
-  const [user] = await registerUser(request(app));
+  const uniqueName = 'pizza_' + randomName();
+  const regRes = await request(app)
+    .post('/api/auth')
+    .send({ name: uniqueName, email: `${randomName()}@test.com`, password: 'a' });
+  const user = regRes.body.user;
   const [, adminToken] = await loginAdmin(request(app));
 
-  const res = await request(app).get('/api/user?limit=1000').set('Authorization', 'Bearer ' + adminToken);
+  const res = await request(app).get(`/api/user?name=${uniqueName}`).set('Authorization', 'Bearer ' + adminToken);
   expect(res.status).toBe(200);
   const found = res.body.users.find((u) => u.email === user.email);
   expect(found).toMatchObject({ id: user.id, name: user.name, email: user.email });
@@ -100,6 +104,23 @@ test('list users filters by name', async () => {
     .get(`/api/user?name=${uniqueName.slice(0, 8)}*`)
     .set('Authorization', 'Bearer ' + adminToken);
   expect(wildcard.body.users.some((u) => u.name === uniqueName)).toBe(true);
+});
+
+//Delete Users
+test('delete user unauthorized', async () => {
+  const res = await request(app).delete('/api/user/1');
+  expect(res.status).toBe(401);
+});
+
+test('delete user as diner is forbidden', async () => {
+  const [victim] = await registerUser(request(app));       // the user someone tries to delete
+  const [, dinerToken] = await registerUser(request(app)); // a regular diner
+
+  const res = await request(app)
+    .delete(`/api/user/${victim.id}`)
+    .set('Authorization', 'Bearer ' + dinerToken);
+
+  expect(res.status).toBe(403);
 });
 
 // Helper functions
