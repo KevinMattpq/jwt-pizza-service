@@ -13,16 +13,14 @@ beforeAll(async () => {
   expectValidJwt(testUserAuthToken);
 });
 
-//Getting current user
-test("get current user", async () => {
-  const regRes = await request(app).post("/api/auth").send(testUser);
-  const token = regRes.body.token;
-
+// Getting current user
+test('get current user', async () => {
   const res = await request(app)
-    .get("/api/user")
-    .set("Authorization", `Bearer ${token}`);
+    .get('/api/user/me')
+    .set('Authorization', `Bearer ${testUserAuthToken}`);
 
-    expect(res.status).toBe(200);
+  expect(res.status).toBe(200);
+  expect(res.body.email).toBe(testUser.email);
 });
 
 //Getting user without valid token
@@ -106,7 +104,7 @@ test("get current user", async () => {
     expect(page2.body.users.length).toBe(1);
     expect(page2.body.users[0].id).not.toBe(page1.body.users[0].id);
   });
-  
+
 
   //Helper functions
   async function loginAdmin(service) {
