@@ -123,6 +123,26 @@ test('delete user as diner is forbidden', async () => {
   expect(res.status).toBe(403);
 });
 
+//Admin that can delete 
+test('deleting a user as admin', async() => {
+  const uniqueName = 'pizza_' + randomName();
+  const regRes = await request(app)
+    .post('/api/auth')
+    .send({ name: uniqueName, email: `${randomName()}@test.com`, password: 'a' });
+  const user = regRes.body.user;
+  const [, adminToken] = await loginAdmin(request(app));
+  const deleteRes = await request(app)
+  .delete(`/api/user/${user.id}`)
+  .set('Authorization', 'Bearer ' + adminToken);
+expect(deleteRes.status).toBe(200);
+
+const listRes = await request(app)
+  .get(`/api/user?name=${uniqueName}`)
+  .set('Authorization', 'Bearer ' + adminToken);
+expect(listRes.body.users.length).toBe(0);
+
+});
+
 // Helper functions
 async function registerUser(service) {
   const user = { name: 'pizza diner', email: `${randomName()}@test.com`, password: 'a' };
