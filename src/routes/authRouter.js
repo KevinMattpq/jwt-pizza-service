@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../config.js');
 const { asyncHandler } = require('../endpointHelper.js');
 const { DB, Role } = require('../database/database.js');
+const metrics = require('../metrics.js');
 
 const authRouter = express.Router();
 
@@ -65,6 +66,7 @@ authRouter.post(
     }
     const user = await DB.addUser({ name, email, password, roles: [{ role: Role.Diner }] });
     const auth = await setAuth(user);
+    metrics.activeUserChange(1);
     res.json({ user: user, token: auth });
   })
 );
@@ -74,8 +76,16 @@ authRouter.put(
   '/',
   asyncHandler(async (req, res) => {
     const { email, password } = req.body;
-    const user = await DB.getUser(email, password);
+    let user;
+    try {
+      user = await DB.getUser(email, password);
+    } catch (err) {
+      metrics.authAttempt(false);
+      throw err;
+    }
     const auth = await setAuth(user);
+    metrics.authAttempt(true);
+    metrics.activeUserChange(1);
     res.json({ user: user, token: auth });
   })
 );
@@ -86,6 +96,7 @@ authRouter.delete(
   authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
     await clearAuth(req);
+    metrics.activeUserChange(-1);
     res.json({ message: 'logout successful' });
   })
 );
